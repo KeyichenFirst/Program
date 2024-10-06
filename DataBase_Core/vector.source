@@ -1,0 +1,50 @@
+CREATE FUNCTION vector_in(cstring) 
+RETURNS vector 
+AS '_OBJWD_/vector' 
+LANGUAGE C IMMUTABLE STRICT;
+ 
+CREATE FUNCTION vector_out(vector) 
+RETURNS cstring 
+AS '_OBJWD_/vector' 
+LANGUAGE C IMMUTABLE STRICT;
+ 
+CREATE TYPE vector (
+    INPUT = vector_in,
+    OUTPUT = vector_out,
+    INTERNALLENGTH = VARIABLE
+);
+ 
+CREATE FUNCTION vector_add(vector, vector) 
+RETURNS vector 
+AS '_OBJWD_/vector' 
+LANGUAGE C IMMUTABLE STRICT;
+ 
+CREATE FUNCTION vector_subtract(vector, vector) 
+RETURNS vector 
+AS '_OBJWD_/vector' 
+LANGUAGE C IMMUTABLE STRICT;
+ 
+CREATE FUNCTION 
+vector_l2_distance(vector, vector) 
+RETURNS float4 AS '_OBJWD_/vector' 
+LANGUAGE C IMMUTABLE STRICT;
+ 
+CREATE FUNCTION vector_dimensions(vector) 
+RETURNS int AS '_OBJWD_/vector' 
+LANGUAGE C IMMUTABLE STRICT;
+ 
+ 
+CREATE OPERATOR + (
+    PROCEDURE = vector_add, LEFTARG = vector, RIGHTARG = vector
+    );
+CREATE OPERATOR - (
+    PROCEDURE = vector_subtract, LEFTARG = vector, RIGHTARG = vector
+    );
+CREATE OPERATOR <-> (
+    PROCEDURE = vector_l2_distance, LEFTARG = vector, RIGHTARG = vector
+    );
+CREATE OPERATOR <#> (
+    PROCEDURE = vector_dimensions, RIGHTARG = vector
+    );
+ 
+ 
