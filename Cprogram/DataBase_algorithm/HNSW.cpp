@@ -2,6 +2,7 @@
 #include <limits>
 #include <queue>
 
+
 class HNSWNode{
     public:
     int id;
@@ -36,6 +37,7 @@ class HNSW{
     }
 
     void insertNode(int nodeid, const std::vector<float>& data){
+        // 随机生成层数
         int level = chooseRandomLevel();
         HNSWNode* newnode = new HNSWNode(nodeid,level);
 
@@ -55,33 +57,91 @@ class HNSW{
             }else{
                 // 从前一层找到的最近邻节点开始查找
                 HNSWNode* entrypoint = newnode;
-                 searchlayer(entryPoint,newnode,data, l);
+                searchlayer(entryPoint,newnode,data, l);
             }
             updateConnections(newNode, l);
         }
     }
 
     void searchlayer(HNSWNode* entrypoint , HNSWNode* newnode ,const std::vector<float>& data, int layer ){
-        // 贪心搜索
-        float currentDist = distance(entrypoint->id , newnode->id , data);
-        std::priority_queue<std::pair<float ,HNSWNode*>> candidates;
-        candidates.push({-currentDist, entrypoint});
+        std::unordered_set<in> visited;
+        std::priority_queue<std::pair<float,int>> candidates;
+        std::priority_queue<std::pair<float,int >> closestNeighbors;
+
+        float dist = distacne(entrypoint, -1, query);
+        candidates.push({dist, entrypoint->id});
+        closestNeighbors.push({dist , entrypoint->id});
+        visited.insert(entrypoint->id);
 
         while(!candidates.empty()){
             auto topCandidate = candidates.top();
-            float dist = -topCandidate,first;
-            HNSWNode* currentNode = topCandidate.second;
-
+            float closestDist = -topCandidate.first;
+            int currentNodeid = topCandidate.second;
             candidates.pop();
-            for(int neighborid : currentNode->neighbors[layer]){
-                HNSWNode* neighborid = nodes[neighborid];
-                float d = distance(neighborid->id, newnode->id, data);
+            
+            // 如果候选节点的距离大于找到的最大距离
+            float farthestDist = closestNeighbors.top().first;
+            if(closestDist > farthestDist){
+                break;
+            }
 
-                if(d < currentDist){
-                    candidates.push({-d,neighbor});
-                    currentDist = d;
+            HNSWNode* currentnode = nodes[currentNodeid];
+            for(int neighborid : currentnode->neighbors[layer]){
+                if(visited.find(neighborid) != visited.end()){
+                    continue;
+                }
+                visited.insert(neighborid);
+                float d = distance(neighborid, -1, query);
+                if(closestNeighbors.size() < ef || d < farthestDist){
+                    candidates.push({-d, neighborid});
+                    closestNeighbors({d,neighborid});
+                    if(closestNeighbors.size() > ef){
+                        closestNeighbors.pop();
+                    }
                 }
             }
         }
+        std::vector<int> result;
+        while( !closestNeighbors.empty()){
+            result.push_back(closestNeighbors.top().second);
+            closestNeighbors.pop();
+        }
+        return result;
+    }
+
+    void updateConnections(HNSWNode* newnode, int layer){
+        // 确保邻接表的大小不超过最大值
+        while(newnode->neighbors[layer].size() > maxConnections){
+            newnode->neighbors[layer].pop();
+        }
+    }
+
+    float distance(int id1, int id2 , const std::vector<float>& data){
+        float sum =  0.0f;
+        for(size_t i = 0 ; i < data.size() ; ++i){
+            float diff = data[id1 * data.size() + i] - data[id2 * data.size() + i];
+            sum += diff * diff;
+        }
+        return std::sqrt(sum);
+    }
+
+    std::vector<int> seatchKnn(const std::vector<float>& query , int k ){
+        std::priority_queue<std::pair<float, int >> nearestNeighbors;
+        for(HNSWNode* node: nodes){
+            float dist = distance(node->id , -1, query);
+            if(nearestNeighbors.size() < k){
+                nearestNeighbors.push({dist,node->id});
+            }else if(dist < nearestNeighbors.top().first()){
+                nearestNeighbors.pop();
+                nearestNeighbors.push({dist, node->id});
+            }
+        }
+
+        std::vector<int> result;
+        while(!nearestNeighbors.empty()){
+            result.push_back(nearestNeighbors.top().second);
+            nearestNeighbors.pop();
+        }
+        return result;
     }
 }
