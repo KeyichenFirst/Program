@@ -1,3 +1,6 @@
+#include "NSG.h"
+#include "./Read_Data/read_common.h"
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -121,49 +124,6 @@ void UpdateGraph(NNDescent& nndescent, int node_id, const std::vector<Neighbor>&
     for (const auto& neighbor : neighbors) {
         nndescent.graph[node_id].pool.push_back(neighbor);  // 添加新邻居
     }
-}
-
-
-// 1.实现ReadData函数
-std::vector<std::vector<float>> ReadData(const std::string& file_path, int64_t& num_points,int64_t& dim, int max_lines){
-    std::ifstream file(file_path);
-    std::vector<std::vector<float>> data;
-    std::string line;
-    int line_count = 0;
-
-    std::cout  << "beging -------" << std::endl;
-
-    while(std::getline(file , line) && line_count < max_lines) {
-        std::istringstream ss(line);
-        std::string word;  // 用于存储单词部分
-        ss >> word;        // 跳过该行的第一个单词
-        
-        std::vector<float> vec;
-        float value;
-
-        // 读取剩下的浮点数
-        while (ss >> value) {
-            // std::cout << "begin ss >> value " << std::endl; 
-            vec.push_back(value); // 将浮点数加入向量
-        }
-
-        // 输出每行的数据
-        // std::cout << "Read vector: ";
-        // for (float val : vec) {
-        //     std::cout << val << " ";
-        // }
-        // std::cout << std::endl;
-        // std::cout << "dim == " << dim << std::endl;
-        // std::cout << "vec.size() == " << vec.size() << std::endl;
-        if(dim == 0){
-            dim  = vec.size();
-        }
-        data.push_back(vec);
-        
-        line_count ++;
-    }
-    num_points = data.size();
-    return data;
 }
 
 // 2.实现KNN初始化

@@ -6,6 +6,7 @@
 #include "common/shortest_dec.h"
 #include "libpq/pqformat.h"		
 PG_MODULE_MAGIC;
+
 #define MAXFLOATWIDTH 32
 
 // 定义 Vector 结构体，表示向量类型
@@ -26,13 +27,12 @@ vector_in(PG_FUNCTION_ARGS)
     int open_braces = 0, close_braces = 0;  // 记录左右大括号的数量
     char *endptr;
     int dimension = 0;
-    float values[1028];  // 向量的最大维度为 1024
+    float values[1100];  // 向量的最大维度为 1024
     
-    // 验证输入字符串是否合法
-
+    // 1.验证输入字符串是否合法
     int str_len = strlen(input_str);
 
-    // 检查是否有连续的逗号或逗号是否出现在最后
+    // 2.检查是否有连续的逗号或逗号是否出现在最后
     for (int i = 0; i < str_len - 1; i++) {
         if (input_str[i] == ',' && input_str[i + 1] == ',') {
             ereport(ERROR, (errmsg("错误：无效的向量格式")));
@@ -42,7 +42,7 @@ vector_in(PG_FUNCTION_ARGS)
         }
     }
 
-    // 检查是否有未匹配的花括号
+    // 3.检查是否有未匹配的花括号
     for (int i = 0; i < str_len; i++) {
         if (input_str[i] == '{') open_braces++;
         if (input_str[i] == '}') close_braces++;
@@ -51,22 +51,35 @@ vector_in(PG_FUNCTION_ARGS)
         ereport(ERROR, (errmsg("错误：无效的向量格式。")));
     }
 
+    if (input_str[0] != '{' && input_str[str_len - 1] != '}') {
+        ereport(ERROR, (errmsg("错误：无效的向量格式")));
+    }
+
     // 检查向量格式是否符合 "{...}" 的规范
     if (input_str[0] == '{' && input_str[str_len - 1] == '}') {
         token = strtok(input_str, "{,}");  // 分割字符串，提取数值
         while (token != NULL) {
-            if (dimension >= 1024)
+            if (dimension >= 1024){
                 ereport(ERROR, (errmsg("错误：向量的维度")));
-            
+            }
+                
             // 去除空格
-            while (isspace(*token)) token++;
+            while (isspace(*token)){
+                token++;
+            }
 
             // 检查是否为有效的浮点数
-            if (token[0] == '.') ereport(ERROR, (errmsg("错误：无效的向量格式")));  
-            if (strlen(token) > 1 && (token[0] == '+' || token[0] == '-') && token[1] == '.') 
+            if (token[0] == '.'){
+                ereport(ERROR, (errmsg("错误：无效的向量格式")));  
+            }
+            if (strlen(token) > 1 && (token[0] == '+' || token[0] == '-') && token[1] == '.') {
                 ereport(ERROR, (errmsg("错误：无效的向量格式"))); 
-            if (token[strlen(token) - 1] == '.') 
+            }
+                
+            if (token[strlen(token) - 1] == '.') {
                 ereport(ERROR, (errmsg("错误：无效的向量格式")));
+            }
+                
 
             // 使用 strtof 将字符串转换为浮点数
             value = strtof(token, &endptr);
@@ -112,7 +125,7 @@ vector_out(PG_FUNCTION_ARGS)
 
     StringInfoData buf;
     int count;
-    char float_str[100];
+    char float_str[105];
     initStringInfo(&buf);
 
     appendStringInfoChar(&buf, '{');  // 输出以 { 开始
@@ -137,9 +150,9 @@ vector_out(PG_FUNCTION_ARGS)
         }
     }
 
-    appendStringInfoChar(&buf, '}');  // 输出以 } 结束
+    appendStringInfoChar(&buf, '}');  
 
-    result = pstrdup(buf.data);  // 将输出结果转换为字符串
+    result = pstrdup(buf.data);  
 
     PG_RETURN_CSTRING(result);
 }
@@ -149,41 +162,42 @@ PG_FUNCTION_INFO_V1(vector_add);
 Datum
 vector_add(PG_FUNCTION_ARGS)
 {
-    Vector *a = (Vector *) PG_GETARG_POINTER(0);
-    Vector *b = (Vector *) PG_GETARG_POINTER(1);
+    Vector *vector1 = (Vector *) PG_GETARG_POINTER(0);
+    Vector *vector2 = (Vector *) PG_GETARG_POINTER(1);
     Vector *result;
 
-    if (a->dimension != b->dimension)
+    if (vector1->dimension != vector2->dimension)
         ereport(ERROR, (errmsg("维度不同，无法进行向量加法计算。")));
 
-    result = (Vector *) palloc(VARHDRSZ + sizeof(int) + sizeof(float) * a->dimension);
-    SET_VARSIZE(result, VARHDRSZ + sizeof(int) + sizeof(float) * a->dimension);
-    result->dimension = a->dimension;
+    result = (Vector *) palloc(VARHDRSZ + sizeof(int) + sizeof(float) * vector1->dimension);
+    SET_VARSIZE(result, VARHDRSZ + sizeof(int) + sizeof(float) * vector1->dimension);
+    result->dimension = vector1->dimension;
 
-    for (int i = 0; i < a->dimension; i++)
-        result->data[i] = a->data[i] + b->data[i];
+    for (int i = 0; i < vector1->dimension; i++)
+        result->data[i] = vector1->data[i] + vector2->data[i];
 
     PG_RETURN_POINTER(result);
 }
+
 
 // 向量相减函数
 PG_FUNCTION_INFO_V1(vector_subtract);
 Datum
 vector_subtract(PG_FUNCTION_ARGS)
 {
-    Vector *a = (Vector *) PG_GETARG_POINTER(0);
-    Vector *b = (Vector *) PG_GETARG_POINTER(1);
+    Vector *vector1 = (Vector *) PG_GETARG_POINTER(0);
+    Vector *vector2 = (Vector *) PG_GETARG_POINTER(1);
     Vector *result;
 
-    if (a->dimension != b->dimension)
+    if (vector1->dimension != vector2->dimension)
         ereport(ERROR, (errmsg("维度不同，无法进行向量减法计算。")));
 
-    result = (Vector *) palloc(VARHDRSZ + sizeof(int) + sizeof(float) * a->dimension);
-    SET_VARSIZE(result, VARHDRSZ + sizeof(int) + sizeof(float) * a->dimension);
-    result->dimension = a->dimension;
+    result = (Vector *) palloc(VARHDRSZ + sizeof(int) + sizeof(float) * vector1->dimension);
+    SET_VARSIZE(result, VARHDRSZ + sizeof(int) + sizeof(float) * vector1->dimension);
+    result->dimension = vector1->dimension;
 
-    for (int i = 0; i < a->dimension; i++)
-        result->data[i] = a->data[i] - b->data[i];
+    for (int i = 0; i < vector1->dimension; i++)
+        result->data[i] = vector1->data[i] - vector2->data[i];
 
     PG_RETURN_POINTER(result);
 }
